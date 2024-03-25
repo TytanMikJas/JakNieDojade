@@ -1,0 +1,6 @@
+# Ignore all CSV files
+*.csv
+*.pkl
+__pycache__
+.vscode
+settings.json
