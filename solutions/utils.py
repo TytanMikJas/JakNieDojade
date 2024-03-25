@@ -1,8 +1,8 @@
 from datetime import timedelta
 from tabulate import tabulate
-import geopy.distance
+from geopy.distance import geodesic
 
-TRANSPORT_SPEED_HM_H = 40
+TRANSPORT_SPEED_KM_H = 40
 
 def calculate_cost(time1, time2):
     hour1, minute1, seconds1 = map(int, time1.split(':'))
@@ -10,11 +10,11 @@ def calculate_cost(time1, time2):
 
     return ((hour2 - hour1) * 60 + (minute2 - minute1) + (seconds2 - seconds1) / 60) % 1440
 
-def calculate_heuristic(x1, y1, x2, y2):
-    km_difference = geopy.distance.geodesic((x1, y1), (x2, y2)).km
-    return km_difference / TRANSPORT_SPEED_HM_H * 60
+def estimate_travel_time(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    distance_km = geodesic((lat1, lon1), (lat2, lon2)).km
+    return distance_km / TRANSPORT_SPEED_KM_H * 60
 
-def get_path(prev_edges, last_node):
+def reconstruct_path(prev_edges: dict, last_node: str):
     final_list = []
     
     changes = 0
@@ -33,42 +33,31 @@ def get_path(prev_edges, last_node):
     
     return final_list, changes
 
-def display_table(edges, start, end, start_time, distance, changes, elapsed_time):
+def display_journey_summary(path: list, start: str, end: str, start_time: str, distance: float, changes: int, calculation_time: float):
     headers = ["Start Stop", "Departure Time", "End Stop", "Arrival Time", "Line"]
-    print(f"From  {start} to  {end} started at: {start_time}")
-    print(f"Travel time: {distance}, changes {changes}")
-    print(f"it took {elapsed_time:.6} seconds to calculate the path.")
-    print(tabulate(edges, headers=headers, tablefmt="grid"))
+    print(f"Journey from {start} to {end} started at: {start_time}:")
+    print(f"Distance: {distance} km, Changes: {changes}")
+    print(f"Calculated in {calculation_time:.4f} seconds.")
+    print(tabulate(path, headers=headers, tablefmt="grid"))
 
-def time_str_to_timedelta(time_str):
-    hours, minutes, seconds = map(int, time_str.split(':'))
-    return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+def parse_time_to_timedelta(time_str: str) -> timedelta:
+    h, m, s = map(int, time_str.split(':'))
+    return timedelta(hours=h, minutes=m, seconds=s)
 
-def calculate_timedelta(curr_time_str, departure_time_str):
-    curr_time = time_str_to_timedelta(curr_time_str)
-    departure_time = time_str_to_timedelta(departure_time_str)
+def calculate_waiting_time(current_time_str: str, departure_time_str: str) -> timedelta:
+    current_time = parse_time_to_timedelta(current_time_str)
+    departure_time = parse_time_to_timedelta(departure_time_str)
+    return departure_time - current_time
 
-    return departure_time - curr_time
-
-def get_direct_connection(graph_dict, lines, curr_time_str, curr_node):
-    final_wait_time = timedelta(days=1)
+def find_earliest_connection(graph: dict, lines: set, current_time: str, current_node: str):
+    min_wait_time = timedelta(days=1)
     best_line = None
-    curr_line = None
-    for edge in graph_dict[curr_node]:
-        if curr_line != edge.line:
-            min_wait_time = timedelta(days=1)
-            curr_line = edge.line
-            
+    for edge in graph[current_node]:
         if edge.line in lines:
-            wait_time = calculate_timedelta(curr_time_str, edge.departure_time)
-            if wait_time >= timedelta(0):
-                if wait_time < min_wait_time:
-                    min_wait_time = wait_time
-
-            if min_wait_time < final_wait_time:
-                final_wait_time = min_wait_time
+            wait_time = calculate_waiting_time(current_time, edge.departure_time)
+            if wait_time >= timedelta(0) and wait_time < min_wait_time:
+                min_wait_time = wait_time
                 best_line = edge.line
 
-    final_wait_time = final_wait_time.total_seconds() // 60
-
-    return best_line, final_wait_time
+    wait_minutes = min_wait_time.total_seconds() / 60
+    return best_line, wait_minutes
