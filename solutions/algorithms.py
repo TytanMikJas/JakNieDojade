@@ -1,8 +1,9 @@
 import time
+import math
 import heapq
-from utils import calculate_cost, reconstruct_path, display_journey_summary, find_earliest_connection
+from distance_calculations import calculate_cost, find_earliest_connection
 
-LINE_CHANGE_COST = 20
+LINE_CHANGE_COST = 15
 
 def dijkstra(graph_dict: dict, start: str, end: str, start_time: str):
     start_exec_time = time.time()
@@ -37,9 +38,7 @@ def dijkstra(graph_dict: dict, start: str, end: str, start_time: str):
     
     elapsed_time = time.time() - start_exec_time
     
-    final_list, changes = reconstruct_path(prev_edges, last_node)
-
-    display_journey_summary(final_list, start, end, start_time, distances[end], changes, elapsed_time)
+    return distances, prev_edges, last_node, start, end, start_time, elapsed_time
 
 
 def astar_time(graph_dict: dict, start: str, end: str, start_time: str, heuristic):
@@ -78,12 +77,10 @@ def astar_time(graph_dict: dict, start: str, end: str, start_time: str, heuristi
     
     elapsed_time = time.time() - start_exec_time
     
-    final_list, changes = reconstruct_path(prev_edges, last_node)
-    
-    display_journey_summary(final_list, start, end, start_time, distances[end], changes, elapsed_time)
+    return distances, prev_edges, last_node, start, end, start_time, elapsed_time
 
 
-def astar_distance(graph_dict: dict, lines_dict: dict, start: str, end: str, start_time: str, heuristic):
+def astar_stops(graph_dict: dict, lines_dict: dict, start: str, end: str, start_time: str, heuristic):
     final_stop_lat, final_stop_lon = graph_dict[end][0].get_coords()
     
     start_exec_time = time.time()
@@ -135,7 +132,63 @@ def astar_distance(graph_dict: dict, lines_dict: dict, start: str, end: str, sta
     
     elapsed_time = time.time() - start_exec_time
     
-    final_list, changes = reconstruct_path(prev_edges, last_node)
+    return distances, prev_edges, last_node, start, end, start_time, elapsed_time
+
+
+def tabu_search(stops, trip_start_time, graph_dict, heuristric):
+    start_exec_time = time.time()
+    n_stops = len(stops)
+    max_iterations = math.ceil(1.1*(n_stops**2))
+    turns_improved = 0
+    improve_thresh = 2*math.floor(math.sqrt(max_iterations))
+    tabu_list = []
+    tabu_tenure = n_stops
+
+    distances = [[astar_time(graph_dict, start, stop, trip_start_time, heuristric)[0][stop] for start in stops] for stop in stops]
+
+    total = 0
+    for i in range(n_stops):
+            for j in range(n_stops):
+                total += distances[i][j]
+
+    aspiration_criteria = (total/(n_stops**2))*2.2
+    current_solution = list(range(n_stops))
+    best_solution = current_solution[:]
+    best_solution_cost = sum([distances[current_solution[i]][current_solution[(i+1)%n_stops]] for i in range(n_stops)])
+
+    for iteration in range(max_iterations):
+        if turns_improved>improve_thresh:
+            break
+        best_neighbor = None
+        best_neighbor_cost = float('inf')
+        tabu_candidate = (0,0)
+        for i in range(n_stops):
+            for j in range(i+1, n_stops):
+                neighbor = current_solution[:]
+                if i > 0:
+                    neighbor[i], neighbor[j] = neighbor[j], neighbor[i]
+                neighbor_cost = sum([distances[neighbor[i]][neighbor[(i+1)%n_stops]] for i in range(n_stops)])
+                if (i,j) not in tabu_list or neighbor_cost < aspiration_criteria:
+                    if neighbor_cost < best_neighbor_cost:
+                        best_neighbor = neighbor[:]
+                        best_neighbor_cost = neighbor_cost
+                        tabu_candidate = (i,j)
+        if best_neighbor is not None:
+            current_solution = best_neighbor[:]
+            tabu_list.append(tabu_candidate)
+            if len(tabu_list) > tabu_tenure:
+                tabu_list.pop(0)
+            if best_neighbor_cost < best_solution_cost:
+                best_solution = best_neighbor[:]
+                best_solution_cost = best_neighbor_cost
+                turns_improved=0
+            else:
+                turns_improved=turns_improved+1
+
+        print("Iteration {}: Best solution cost = {}".format(iteration, best_solution_cost))
+
+    elapsed_time = time.time()
+    print(f"time: {elapsed_time - start_exec_time}")
+    stops_sorted = [stops[i] for i in best_solution]
     
-    display_journey_summary(final_list, start, end, start_time, distances[end], changes, elapsed_time)
-    
+    print(f"Best solution: {stops_sorted}")
