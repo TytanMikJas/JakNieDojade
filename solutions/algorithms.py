@@ -140,9 +140,9 @@ def tabu_search(stops, trip_start_time, graph_dict, heuristric):
     n_stops = len(stops)
     max_iterations = math.ceil(1.1*(n_stops**2))
     turns_improved = 0
-    improve_thresh = 2*math.floor(math.sqrt(max_iterations))
+    improve_thresh = 3
     tabu_list = []
-    tabu_tenure = n_stops
+    tabu_tenure = n_stops**3
 
     distances = [[astar_time(graph_dict, start, stop, trip_start_time, heuristric)[0][stop] for start in stops] for stop in stops]
 
@@ -157,6 +157,7 @@ def tabu_search(stops, trip_start_time, graph_dict, heuristric):
     best_solution_cost = sum([distances[current_solution[i]][current_solution[(i+1)%n_stops]] for i in range(n_stops)])
 
     for iteration in range(max_iterations):
+        
         if turns_improved>improve_thresh:
             break
         best_neighbor = None
