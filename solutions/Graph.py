@@ -1,6 +1,6 @@
 import pandas as pd
 import pickle
-import os
+from distance_calculations import calculate_cost
 from typing import Dict
 from Edge import Edge
 
@@ -31,7 +31,8 @@ class Graph:
                 start_stop_lat=float(row['start_stop_lat']),
                 start_stop_lon=float(row['start_stop_lon']),
                 end_stop_lat=float(row['end_stop_lat']),
-                end_stop_lon=float(row['end_stop_lon'])
+                end_stop_lon=float(row['end_stop_lon']),
+                weight =float(calculate_cost(str(row['departure_time']), str(row['arrival_time'])))
             )
             if edge.start_stop not in graph:
                 graph[edge.start_stop] = [edge]

@@ -27,8 +27,8 @@ def dijkstra(graph_dict: dict, start: str, end: str, start_time: str):
             continue
         
         for edge in graph_dict[curr_node]:
-            waiting_time= calculate_cost(curr_time, edge.departure_time)
-            travel_time = calculate_cost(edge.departure_time, edge.arrival_time)
+            waiting_time = calculate_cost(curr_time, edge.departure_time)
+            travel_time = edge.weight
             new_distance = curr_dist + travel_time + waiting_time
 
             if new_distance < distances[edge.end_stop]:
@@ -66,7 +66,7 @@ def astar_time(graph_dict: dict, start: str, end: str, start_time: str, heuristi
 
         for edge in graph_dict[curr_node]:
             waiting_time = calculate_cost(curr_time, edge.departure_time)
-            travel_time = calculate_cost(edge.departure_time, edge.arrival_time)
+            travel_time = edge.weight
             new_distance = distances[curr_node] + travel_time + waiting_time
             
             if new_distance < distances[edge.end_stop]:
@@ -121,7 +121,7 @@ def astar_stops(graph_dict: dict, lines_dict: dict, start: str, end: str, start_
                     continue
             
             waiting_time = calculate_cost(curr_time, edge.departure_time)
-            travel_time = calculate_cost(edge.departure_time, edge.arrival_time)
+            travel_time = edge.weight
             new_distance = distances[curr_node] + travel_time + waiting_time
             
             if new_distance + line_change_penalty < distances[edge.end_stop]:
